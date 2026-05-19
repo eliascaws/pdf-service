@@ -1,8 +1,10 @@
 package se.elias.pdfservice.service;
 
+import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.multipdf.PDFMergerUtility;
 import org.apache.pdfbox.multipdf.Splitter;
 import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.io.RandomAccessReadBuffer;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -17,7 +19,7 @@ public class PdfService {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
 
         for (MultipartFile file : files) {
-            merger.addSource(file.getInputStream());
+            merger.addSource(new RandomAccessReadBuffer(file.getInputStream()));
         }
 
         merger.setDestinationStream(output);
@@ -27,7 +29,7 @@ public class PdfService {
 
     public Map<Integer, byte[]> splitPdf(MultipartFile file) throws IOException {
         Map<Integer, byte[]> pages = new LinkedHashMap<>();
-        try (PDDocument document = PDDocument.load(file.getInputStream())) {
+        try (PDDocument document = Loader.loadPDF(new RandomAccessReadBuffer(file.getInputStream()))) {
             Splitter splitter = new Splitter();
             List<PDDocument> splitDocs = splitter.split(document);
 
