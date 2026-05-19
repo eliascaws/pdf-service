@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: pdfservice
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password123
+    ports:
+      - '5433:5432'
+
+  app:
+    image: pdf-service:latest
+    ports:
+      - '8080:8080'
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      DATASOURCE_URL: jdbc:postgresql://db:5432/pdfservice
+      DATASOURCE_USERNAME: postgres
+      DATASOURCE_PASSWORD: password123
+      S3_BUCKET_NAME: test-bucket
+      APP_USERNAME: admin
+      APP_PASSWORD: hemligt123
+    depends_on:
+      - db
