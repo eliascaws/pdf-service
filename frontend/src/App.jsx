@@ -3,8 +3,12 @@ import axios from 'axios'
 import './App.css'
 
 const API_BASE = '/api/pdf'
+const AUTH_BASE = '/api/auth'
 
 function App() {
+  const [token, setToken] = useState(localStorage.getItem('jwt') || '')
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
   const [mergeFiles, setMergeFiles] = useState([])
   const [splitFile, setSplitFile] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -12,78 +16,84 @@ function App() {
   const [splitPages, setSplitPages] = useState({})
 
   const authHeader = {
-    headers: {
-      'Authorization': 'Basic ' + btoa('admin:hemligt123')
+    headers: { 'Authorization': `Bearer ${token}` }
+  }
+
+  async function handleLogin() {
+    try {
+      const response = await axios.post(`${AUTH_BASE}/login`, { username, password })
+      const jwt = response.data.token
+      setToken(jwt)
+      localStorage.setItem('jwt', jwt)
+      setError('')
+    } catch {
+      setError('Felaktigt användarnamn eller lösenord')
     }
+  }
+
+  async function handleRegister() {
+    try {
+      const response = await axios.post(`${AUTH_BASE}/register`, { username, password })
+      const jwt = response.data.token
+      setToken(jwt)
+      localStorage.setItem('jwt', jwt)
+      setError('')
+    } catch {
+      setError('Registrering misslyckades')
+    }
+  }
+
+  function handleLogout() {
+    setToken('')
+    localStorage.removeItem('jwt')
   }
 
   async function handleMerge() {
-    if (mergeFiles.length < 2) {
-      setError('Välj minst 2 PDF-filer')
-      return
-    }
-    setLoading(true)
-    setError('')
+    if (mergeFiles.length < 2) { setError('Välj minst 2 PDF-filer'); return }
+    setLoading(true); setError('')
     try {
       const formData = new FormData()
       mergeFiles.forEach(f => formData.append('files', f))
-
-      const response = await axios.post(
-          `${API_BASE}/merge`,
-          formData,
-          { ...authHeader, responseType: 'blob' }
-      )
-
-      const url = URL.createObjectURL(new Blob([response.data]))
-      const link = document.createElement('a')
-      link.href = url
-      link.download = 'merged.pdf'
-      link.click()
-    } catch (err) {
-      setError('Fel vid sammanslagning: ' + err.message)
-    } finally {
-      setLoading(false)
-    }
+      const response = await axios.post(`${API_BASE}/merge`, formData, authHeader)
+      window.open(response.data.downloadUrl, '_blank')
+    } catch { setError('Fel vid sammanslagning') }
+    finally { setLoading(false) }
   }
 
   async function handleSplit() {
-    if (!splitFile) {
-      setError('Välj en PDF-fil')
-      return
-    }
-    setLoading(true)
-    setError('')
+    if (!splitFile) { setError('Välj en PDF-fil'); return }
+    setLoading(true); setError('')
     try {
       const formData = new FormData()
       formData.append('file', splitFile)
-
-      const response = await axios.post(
-          `${API_BASE}/split`,
-          formData,
-          authHeader
-      )
+      const response = await axios.post(`${API_BASE}/split`, formData, authHeader)
       setSplitPages(response.data)
-    } catch (err) {
-      setError('Fel vid uppdelning: ' + err.message)
-    } finally {
-      setLoading(false)
-    }
+    } catch { setError('Fel vid uppdelning') }
+    finally { setLoading(false) }
   }
 
-  function downloadPage(pageNum, base64Data) {
-    const bytes = atob(base64Data)
-    const arr = new Uint8Array(bytes.length)
-    for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i)
-    const url = URL.createObjectURL(new Blob([arr], { type: 'application/pdf' }))
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `sida_${pageNum}.pdf`
-    link.click()
+  if (!token) {
+    return (
+        <div className='container'>
+          <h1>PDF-tjänsten</h1>
+          <section className='card'>
+            <h2>Logga in</h2>
+            <input placeholder='Användarnamn' value={username}
+                   onChange={e => setUsername(e.target.value)} />
+            <input placeholder='Lösenord' type='password' value={password}
+                   onChange={e => setPassword(e.target.value)} />
+            <button onClick={handleLogin}>Logga in</button>
+            <button onClick={handleRegister}>Registrera</button>
+          </section>
+          {error && <p className='error'>{error}</p>}
+        </div>
+    )
   }
 
   return (
       <div className='container'>
         <h1>PDF-tjänsten</h1>
+        <button onClick={handleLogout}>Logga ut</button>
 
         <section className='card'>
           <h2>Slå ihop PDF:er</h2>
@@ -102,12 +112,10 @@ function App() {
           <button onClick={handleSplit} disabled={loading}>
             {loading ? 'Bearbetar...' : 'Dela upp'}
           </button>
-          {Object.entries(splitPages).map(([num, data]) => (
+          {Object.entries(splitPages).map(([num, url]) => (
               <div key={num}>
-                <span>Sida {num}</span>
-                <button onClick={() => downloadPage(num, data)}>
-                  Ladda ned
-                </button>
+                <span>Sida {num} </span>
+                <a href={url} target='_blank' rel='noreferrer'>Ladda ned</a>
               </div>
           ))}
         </section>

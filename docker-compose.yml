@@ -10,17 +10,38 @@ services:
     ports:
       - '5433:5432'
 
-  app:
-    image: pdf-service:latest
+  app1:
+    image: eliascaws/pdf-service:latest
     ports:
-      - '8080:8080'
+      - '8081:5000'
     environment:
-      SPRING_PROFILES_ACTIVE: local
+      SPRING_PROFILES_ACTIVE: production
       DATASOURCE_URL: jdbc:postgresql://db:5432/pdfservice
       DATASOURCE_USERNAME: postgres
       DATASOURCE_PASSWORD: password123
-      S3_BUCKET_NAME: test-bucket
+      S3_BUCKET_NAME: pdf-service-storage-elias
       APP_USERNAME: admin
       APP_PASSWORD: hemligt123
+      JWT_SECRET: dettaArEnHemligNyckelSomMastVara256BitsLangEllerMer1234567890ABCDEF
+      JWT_EXPIRATION: "86400000"
+      SERVER_PORT: "5000"
+    depends_on:
+      - db
+
+  app2:
+    image: eliascaws/pdf-service:latest
+    ports:
+      - '8082:5000'
+    environment:
+      SPRING_PROFILES_ACTIVE: production
+      DATASOURCE_URL: jdbc:postgresql://db:5432/pdfservice
+      DATASOURCE_USERNAME: postgres
+      DATASOURCE_PASSWORD: password123
+      S3_BUCKET_NAME: pdf-service-storage-elias
+      APP_USERNAME: admin
+      APP_PASSWORD: hemligt123
+      JWT_SECRET: dettaArEnHemligNyckelSomMastVara256BitsLangEllerMer1234567890ABCDEF
+      JWT_EXPIRATION: "86400000"
+      SERVER_PORT: "5000"
     depends_on:
       - db
